@@ -3,7 +3,17 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function GET(request: Request) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!supabase) {
+    return NextResponse.json(
+      { error: 'Supabase client not initialized' },
+      { status: 500 }
+    );
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -18,16 +28,18 @@ export async function GET(request: Request) {
 
   if (transactionsError) {
     console.error('Error fetching cash flow data:', transactionsError);
-    return NextResponse.json({ error: 'Failed to fetch cash flow data' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch cash flow data' },
+      { status: 500 }
+    );
   }
 
   const cashFlow = transactionsData?.reduce((acc, transaction) => {
-    const date = new Date(transaction.created_at).toISOString().split('T')[0];
-    if (acc[date]) {
-      acc[date] += transaction.amount;
-    } else {
-      acc[date] = transaction.amount;
-    }
+    const date = new Date(transaction.created_at)
+      .toISOString()
+      .split('T')[0];
+
+    acc[date] = (acc[date] || 0) + transaction.amount;
     return acc;
   }, {} as Record<string, number>);
 
