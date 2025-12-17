@@ -1,47 +1,39 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+export const dynamic = "force-dynamic";
 
-export async function GET(request: Request) {
-  const supabase = createClient();
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { getAuth } from "firebase-admin/auth";
+import { getAdminApp } from "@/lib/firebase-admin";
 
-  if (!supabase) {
-    return NextResponse.json(
-      { error: 'Supabase client not initialized' },
-      { status: 500 }
-    );
+export async function GET() {
+  try {
+    const session = cookies().get("__session")?.value;
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { adminApp, adminDb } = getAdminApp();
+    const auth = getAuth(adminApp);
+    const decoded = await auth.verifySessionCookie(session, true);
+
+    const snapshot = await adminDb
+      .collection("transactions")
+      .where("status", "==", "completed")
+      .where("user_uid", "==", decoded.uid)
+      .orderBy("created_at")
+      .get();
+
+    const cashFlow: Record<string, number> = {};
+
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      const date = data.created_at.toDate().toISOString().split("T")[0];
+      cashFlow[date] = (cashFlow[date] || 0) + data.amount;
+    });
+
+    return NextResponse.json({ cashFlow });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const { data: transactionsData, error: transactionsError } = await supabase
-    .from('transactions')
-    .select('amount, created_at')
-    .eq('status', 'completed')
-    .eq('user_uid', user.id)
-    .order('created_at', { ascending: true });
-
-  if (transactionsError) {
-    console.error('Error fetching cash flow data:', transactionsError);
-    return NextResponse.json(
-      { error: 'Failed to fetch cash flow data' },
-      { status: 500 }
-    );
-  }
-
-  const cashFlow = transactionsData?.reduce((acc, transaction) => {
-    const date = new Date(transaction.created_at)
-      .toISOString()
-      .split('T')[0];
-
-    acc[date] = (acc[date] || 0) + transaction.amount;
-    return acc;
-  }, {} as Record<string, number>);
-
-  return NextResponse.json({ cashFlow });
 }

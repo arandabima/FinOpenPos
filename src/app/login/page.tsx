@@ -1,17 +1,44 @@
-import { signup, login } from "./actions";
-/**
- * v0 by Vercel.
- * @see https://v0.dev/t/y71wwxpKfsO
- * Documentation: https://v0.dev/docs#integrating-generated-code-into-your-nextjs-app
- */
+"use client";
+
+import { useState } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { MountainIcon } from "lucide-react";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const login = async () => {
+    try {
+      setLoading(true);
+      await signInWithEmailAndPassword(auth, email, password);
+      alert("Login berhasil");
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signup = async () => {
+    try {
+      setLoading(true);
+      await createUserWithEmailAndPassword(auth, email, password);
+      alert("Akun berhasil dibuat");
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background">
       <div className="mx-auto w-full max-w-md space-y-6">
@@ -23,29 +50,33 @@ export default function LoginPage() {
           </p>
         </div>
         <Card>
-          <form>
-            <CardContent className="space-y-4 mt-4">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" name="email"  type="email" placeholder="name@example.com" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="password">Password</Label>
-                <Input id="password" name="password"  type="password" />
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              <Link
-                href="#"
-                className="text-sm text-muted-foreground"
-                prefetch={false}
-              >
-                Forgot password?
-              </Link>
-              <Button formAction={login}>Log in</Button>
-              <Button formAction={signup}>Sign up</Button>
-            </CardFooter>
-          </form>
+          <CardContent className="space-y-4 mt-4">
+            <div className="grid gap-2">
+              <Label>Email</Label>
+              <Input value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Password</Label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-between">
+            <Link href="#" className="text-sm text-muted-foreground">
+              Forgot password?
+            </Link>
+            <div className="flex gap-2">
+              <Button onClick={login} disabled={loading}>
+                Log in
+              </Button>
+              <Button variant="outline" onClick={signup} disabled={loading}>
+                Sign up
+              </Button>
+            </div>
+          </CardFooter>
         </Card>
       </div>
     </div>
